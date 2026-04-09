@@ -21,9 +21,7 @@ from hardware import Hardware
 
 class ControlSystemGUI(QMainWindow):
     def __init__(self, config_path, parent=None):
-
         self.config = config.Config(config_path)
-
         self.hardware = self.config.get_hardware()
 
         QMainWindow.__init__(self, parent)
@@ -265,11 +263,14 @@ class ControlSystemGUI(QMainWindow):
         self.uncheck_buttons()
         self.ui.iterate_button.setChecked(True)
         self.iteration_start_run_id = self.scheduler.run_id
-        self.scheduler.iterate()
-        self.disable_inputs()
-        self.delete_completed_iterations()
-        self.ui.iteration_start_label.setText("Iteration start: %d"%self.iteration_start_run_id)
-        # TODO: check if shuffle is enabled
+        if self.scheduler.iterate():
+            self.disable_inputs()
+            self.delete_completed_iterations()
+            self.ui.iteration_start_label.setText("Iteration start: %d"%self.iteration_start_run_id)
+            # TODO: check if shuffle is enabled
+        else :
+            self.uncheck_buttons()
+            print('No iteration variable')
 
 
     @pyqtSlot(int)

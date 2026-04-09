@@ -59,44 +59,48 @@ class Scheduler:
         self.hardware.cycle_init()
         self.play()
 
-    def iterate(self):
+    def iterate(self) -> bool:
         print("Iterate")
         iter_vars_dict = self.sequence.variables.get_iterating_variables()
+        if len(iter_vars_dict) != 0: #Bug fixed: When interation is called without iterator stream to connected devices crashes.
+            by_nesting_level = {}
+            for var_name in iter_vars_dict:
+                nesting_level = iter_vars_dict[var_name]['nesting level']
+                num_values = iter_vars_dict[var_name]['num_values']
+                by_nesting_level[nesting_level] = {'var_name' : var_name, 'num_values' : num_values}
 
-        by_nesting_level = {}
-        for var_name in iter_vars_dict:
-            nesting_level = iter_vars_dict[var_name]['nesting level']
-            num_values = iter_vars_dict[var_name]['num_values']
-            by_nesting_level[nesting_level] = {'var_name' : var_name, 'num_values' : num_values}
+            levels = list(by_nesting_level.keys())
+            levels.sort()
 
-        levels = list(by_nesting_level.keys())
-        levels.sort()
-
-        # Generate all indices
-        self.iter_indices = []
-        for level in levels:
-            num_values = by_nesting_level[level]['num_values']
-            var_name = by_nesting_level[level]['var_name']
-            if level == 0:
-                for i in range(num_values):
-                    self.iter_indices.append({var_name:i})
-            else:
-                new_index_list = []
-                for index_dict in self.iter_indices:
+            # Generate all indices
+            self.iter_indices = []
+            for level in levels:
+                num_values = by_nesting_level[level]['num_values']
+                var_name = by_nesting_level[level]['var_name']
+                if level == 0:
                     for i in range(num_values):
-                        index_dict[var_name] = i
-                        new_index_list.append(index_dict.copy())
-                self.iter_indices = new_index_list
+                        self.iter_indices.append({var_name:i})
+                else:
+                    new_index_list = []
+                    for index_dict in self.iter_indices:
+                        for i in range(num_values):
+                            index_dict[var_name] = i
+                            new_index_list.append(index_dict.copy())
+                    self.iter_indices = new_index_list
 
-        if self.shuffle:
-            random.shuffle(self.iter_indices)
+            if self.shuffle:
+                random.shuffle(self.iter_indices)
 
-        self.continuous = True
-        self.advance_indices = True
-        self.run_idx = 0
-        self.sequence.variables.reset_indices()
-        self.hardware.cycle_init()
-        self.play()
+            self.continuous = True
+            self.advance_indices = True
+            self.run_idx = 0
+            self.sequence.variables.reset_indices()
+            self.hardware.cycle_init()
+            self.play()
+            return True
+
+        print('There is not a valid iterator')
+        return False
 
     def stop(self):
         self.continuous = False
