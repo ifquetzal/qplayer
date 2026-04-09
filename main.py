@@ -118,6 +118,8 @@ class ControlSystemGUI(QMainWindow):
         ## Inspector
         self.variables_model.dataChanged.connect(self.inspector_widget.update_plot)
         self.ui.fix_scale.toggled.connect(self.inspector_widget.fix_scale_toggled)
+        self.ui.select_all_channels.clicked.connect(self.inspector_widget.select_all_channels)
+        self.ui.select_none_channels.clicked.connect(self.inspector_widget.select_none_channels)
 
 
         # UTILITY VARIABLES

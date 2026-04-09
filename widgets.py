@@ -1,10 +1,9 @@
 
 
-from PyQt5.Qt import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.uic import *
+from PyQt5.QtGui import QSyntaxHighlighter, QFont, QDoubleValidator, QTextCharFormat, QMouseEvent, QBrush, QColor, QStandardItem
+from PyQt5.QtWidgets import QStyledItemDelegate, QWidget, QLineEdit, QTextEdit, QStyleOptionViewItem, QVBoxLayout, QHBoxLayout, QFormLayout, QMenu, QMessageBox, QListWidget, QListWidgetItem, QSlider, QDialog, QCheckBox, QSizePolicy, QLabel
+from PyQt5.QtCore import QModelIndex, QAbstractItemModel, Qt, pyqtSlot, QPoint, QObject, QEvent, QRegExp
+from PyQt5.uic import loadUiType
 import numpy as np
 import utils
 import hardware
@@ -16,9 +15,10 @@ from playlist import PlaylistModel, PlaylistMoveRoutineProxyModel
 import matplotlib
 # Make sure that we are using QT5
 matplotlib.use('Qt5Agg')
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+import matplotlib.colors as mcolors
 
 
 # pyQtGraph
@@ -673,17 +673,25 @@ class InspectorWidget(QWidget):
 
         super().__init__()
 
-        self.setLayout(QVBoxLayout())
+        self.setLayout(QHBoxLayout())
 
+        plot_widget = QWidget()
+        plot_widget.setLayout(QVBoxLayout())
+        self.layout().addWidget(plot_widget)
 
-        # Not using matplotlib because it is slow
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
         self.fc = FigureCanvas(self.fig)
         self.fc.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.toolbar = NavigationToolbar(self.fc, self)
-        self.layout().addWidget(self.fc)
-        self.layout().addWidget(self.toolbar)
+        plot_widget.layout().addWidget(self.fc)
+        plot_widget.layout().addWidget(self.toolbar)
+
+        # Checkbox panel for channel visibility
+        self.checkbox_panel = QWidget()
+        self.checkbox_panel.setLayout(QVBoxLayout())
+        self.checkbox_panel.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.checkbox_panel)
 
 
 
@@ -696,13 +704,33 @@ class InspectorWidget(QWidget):
         self.layout().addWidget(self.plot)
         """
 
-
+        self.channel_checkboxes = {}  # Maps (chan_name, chan_index) -> QCheckBox
+        self.channel_line_map = {}  # Maps channel tuple -> matplotlib line object
         self.active = False
         self.fix_scale = False
 
     def build_inspector(self):
         self.active = True
+        self.clear_checkboxes()
         self.update_plot()
+
+    def clear_checkboxes(self):
+        """Remove all checkboxes from the panel"""
+        for checkbox in self.channel_checkboxes.values():
+            checkbox.deleteLater()
+        self.channel_checkboxes.clear()
+        self.channel_line_map.clear()
+        layout = self.checkbox_panel.layout()
+        while layout.count():
+            layout.takeAt(0)
+
+    def select_all_channels(self):
+        for checkbox in self.channel_checkboxes.values():
+            checkbox.setChecked(True)
+
+    def select_none_channels(self):
+        for checkbox in self.channel_checkboxes.values():
+            checkbox.setChecked(False)
 
     def set_inactive(self):
         self.active = False
@@ -754,19 +782,61 @@ class InspectorWidget(QWidget):
                 self.fig.canvas.draw_idle()
                 return
             pl_points = self.format_sequence_for_plotting(csequence)
+
+            # Create checkboxes for channels not yet in the panel
+            for chan in pl_points:
+                if chan not in self.channel_checkboxes:
+                    chan_key, chan_index = chan
+                    # Get descriptive name from channel object
+                    channel = csequence[chan]['chan']
+                    chan_display_name = channel.name
+                    checkbox = QCheckBox(f"{chan_display_name}")
+                    checkbox.setChecked(True)
+                    checkbox.stateChanged.connect(self.update_plot)
+                    self.checkbox_panel.layout().insertWidget(0, checkbox)
+                    self.channel_checkboxes[chan] = checkbox
+
             if self.fix_scale:
                 xlim = self.axes.get_xlim()
                 ylim = self.axes.get_ylim()
             self.axes.cla()
             self.axes.set_xlabel('Time (ms)')
 
+            # Collect y-axis labels and positions
+            y_ticks = []
+            y_tick_labels = []
+
             for chan in pl_points:
-                chan_name, chan_index = chan
+                chan_key, chan_index = chan
+
+                # Only plot if checkbox is checked
+                if chan in self.channel_checkboxes and not self.channel_checkboxes[chan].isChecked():
+                    continue
+
+                # Get descriptive name from channel object
+                channel = csequence[chan]['chan']
+                chan_display_name = channel.name
+
                 trace = np.array(pl_points[chan])
                 if len(trace) > 0:
                     t, y = trace[:, 0], trace[:, 1]
-                    self.axes.plot(t,0.8*y+chan_index, label=chan_name)
-                    #self.axes.plot(t, y, label=chan_name)
+                    line, = self.axes.plot(t, 0.8*y+chan_index)
+                    self.channel_line_map[chan] = line
+                    y_ticks.append(chan_index)
+                    y_tick_labels.append(chan_display_name)
+
+            # Set y-axis with channel labels
+            self.axes.set_yticks(y_ticks)
+            self.axes.set_yticklabels(y_tick_labels)
+
+            # Apply color styling to checkboxes
+            for chan in self.channel_checkboxes:
+                if chan in self.channel_line_map:
+                    line = self.channel_line_map[chan]
+                    color = line.get_color()
+                    hex_color = mcolors.to_hex(color)
+                    checkbox = self.channel_checkboxes[chan]
+                    checkbox.setStyleSheet(f"QCheckBox {{ color: {hex_color}; }}")
 
             if self.fix_scale:
                 self.axes.set_xlim(xlim)

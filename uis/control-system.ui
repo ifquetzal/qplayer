@@ -768,30 +768,6 @@ QPushButton:checked{
                <enum>QLayout::SetDefaultConstraint</enum>
               </property>
               <item>
-               <widget class="QCheckBox" name="checkBox">
-                <property name="enabled">
-                 <bool>true</bool>
-                </property>
-                <property name="text">
-                 <string>CheckBox</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QCheckBox" name="checkBox_2">
-                <property name="text">
-                 <string>CheckBox</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QCheckBox" name="checkBox_3">
-                <property name="text">
-                 <string>CheckBox</string>
-                </property>
-               </widget>
-              </item>
-              <item>
                <spacer name="verticalSpacer">
                 <property name="orientation">
                  <enum>Qt::Vertical</enum>
@@ -804,20 +780,34 @@ QPushButton:checked{
                 </property>
                </spacer>
               </item>
+              <item>
+               <widget class="QPushButton" name="fix_scale">
+                <property name="text">
+                 <string>Freeze scale</string>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="checked">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="select_all_channels">
+                <property name="text">
+                 <string>All</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="select_none_channels">
+                <property name="text">
+                 <string>None</string>
+                </property>
+               </widget>
+              </item>
              </layout>
-            </item>
-            <item>
-             <widget class="QPushButton" name="fix_scale">
-              <property name="text">
-               <string>Freeze scale</string>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-              <property name="checked">
-               <bool>false</bool>
-              </property>
-             </widget>
             </item>
            </layout>
           </item>
