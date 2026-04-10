@@ -706,6 +706,7 @@ class InspectorWidget(QWidget):
 
         self.channel_checkboxes = {}  # Maps (chan_name, chan_index) -> QCheckBox
         self.channel_line_map = {}  # Maps channel tuple -> matplotlib line object
+        self.channel_color_map = {}  # Maps channel tuple -> fixed hex color string
         self.active = False
         self.fix_scale = False
 
@@ -720,6 +721,7 @@ class InspectorWidget(QWidget):
             checkbox.deleteLater()
         self.channel_checkboxes.clear()
         self.channel_line_map.clear()
+        self.channel_color_map.clear()
         layout = self.checkbox_panel.layout()
         while layout.count():
             layout.takeAt(0)
@@ -795,6 +797,9 @@ class InspectorWidget(QWidget):
                     checkbox.stateChanged.connect(self.update_plot)
                     self.checkbox_panel.layout().insertWidget(0, checkbox)
                     self.channel_checkboxes[chan] = checkbox
+                    prop_cycle = matplotlib.rcParams['axes.prop_cycle']
+                    colors = [c['color'] for c in prop_cycle]
+                    self.channel_color_map[chan] = colors[len(self.channel_color_map) % len(colors)]
 
             if self.fix_scale:
                 xlim = self.axes.get_xlim()
@@ -820,7 +825,7 @@ class InspectorWidget(QWidget):
                 trace = np.array(pl_points[chan])
                 if len(trace) > 0:
                     t, y = trace[:, 0], trace[:, 1]
-                    line, = self.axes.plot(t, 0.8*y+chan_index)
+                    line, = self.axes.plot(t, 0.8*y+chan_index, color=self.channel_color_map[chan])
                     self.channel_line_map[chan] = line
                     y_ticks.append(chan_index)
                     y_tick_labels.append(chan_display_name)
@@ -830,13 +835,9 @@ class InspectorWidget(QWidget):
             self.axes.set_yticklabels(y_tick_labels)
 
             # Apply color styling to checkboxes
-            for chan in self.channel_checkboxes:
-                if chan in self.channel_line_map:
-                    line = self.channel_line_map[chan]
-                    color = line.get_color()
-                    hex_color = mcolors.to_hex(color)
-                    checkbox = self.channel_checkboxes[chan]
-                    checkbox.setStyleSheet(f"QCheckBox {{ color: {hex_color}; }}")
+            for chan, checkbox in self.channel_checkboxes.items():
+                if chan in self.channel_color_map:
+                    checkbox.setStyleSheet(f"QCheckBox {{ color: {self.channel_color_map[chan]}; }}")
 
             if self.fix_scale:
                 self.axes.set_xlim(xlim)
